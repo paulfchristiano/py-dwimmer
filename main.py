@@ -5,5 +5,6 @@ from ipdb import set_trace as debug
 
 compiler.learn_from_all()
 
-A = reverse([0, 1, 2])
-debug()
+if __name__ == '__main__':
+    A = reverse([0, 1, 2])
+    debug()

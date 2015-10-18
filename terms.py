@@ -252,6 +252,10 @@ class SettingTemplate(object):
         """
         return SettingTemplate(intern.extend_list(self.id, line.id))
 
+    #TODO compute directly by ID manipulation
+    def previous(self):
+        return SettingTemplate(self.lines()[:-1])
+
     def lines(self):
         return intern.get_all(self.id, [from_id])
 

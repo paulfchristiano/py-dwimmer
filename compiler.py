@@ -5,7 +5,14 @@ import utilities
 import runner
 import data
 
+#maps each setting ID to the location of the last line of code
+#defining actions in that setting
+locations = {}
+
 to_learn = []
+
+def testing():
+    print("loaded pydwimmer")
 
 def queue_to_learn(*args):
     to_learn.append(args)
@@ -15,7 +22,7 @@ def learn_from_all():
         learn_from_code(*args)
 
 def dwim(f):
-    source = utilities.uncompile(f.func_code)[0]
+    source, filename, first_line = utilities.uncompile(f.func_code)
     tree = ast.parse(source)
     if isinstance(tree, ast.Module):
         fdef = tree.body[0]
@@ -27,7 +34,7 @@ def dwim(f):
             permute = utilities.permutation_from(newargs, args)
             setting = terms.Setting()
             setting.append_line(question(*[terms.RefName(name) for name in newargs]))
-            queue_to_learn(fdef.body, setting, f.__globals__)
+            queue_to_learn(fdef.body, setting, f.__globals__, filename, first_line)
             def stub(*args):
                 Q = question(*(args[permute[i]] for i in range(len(args))))
                 return runner.ask(Q)
@@ -36,10 +43,19 @@ def dwim(f):
     else:
         raise ValueError()
 
+def last_line_of(node):
+    if hasattr(node, "lineno"):
+        last = node.lineno
+    else:
+        last = -1
+    for child in ast.iter_child_nodes(node):
+        last = max(last_line_of(child), last)
+    return last
+
 def is_call_like(head):
     return isinstance(head, ast.Call) or isinstance(head, ast.BinOp) or isinstance(head, ast.Compare)
 
-def learn_from_code(body, setting, g):
+def learn_from_code(body, setting, g, filename, first_line):
     def register_action(action):
         runner.transitions[setting.head.id] = action
     head = body[0]
@@ -52,7 +68,7 @@ def learn_from_code(body, setting, g):
             v = parse_term_constructor(value, setting, g)
             action = terms.Action.view(v)
         elif isinstance(value, ast.Str):
-            return learn_from_code(body[1:], setting, g)
+            return learn_from_code(body[1:], setting, g, filename, first_line)
         else:
             raise ValueError("invalid expression type in dwim'd function")
     elif isinstance(head, ast.Return):
@@ -65,6 +81,8 @@ def learn_from_code(body, setting, g):
         raise ValueError("first line of a block was not an expression or return/raise")
     register_action(action)
     setting = setting.append_line(action)
+    last_line = last_line_of(body[-1])
+    locations[setting.head.id] = (filename, last_line+first_line, head.col_offset)
     for block in body[1:]:
         if isinstance(block, ast.With):
             context = block.context_expr
@@ -74,7 +92,7 @@ def learn_from_code(body, setting, g):
                 new_setting = setting.copy().append_line(template(*arg_names))
             else:
                 raise ValueError("with context is not a function call")
-            learn_from_code(block.body, new_setting, g)
+            learn_from_code(block.body, new_setting, g, filename, first_line)
         else:
             raise ValueError("subsequent line of a block was not a with statement")
 

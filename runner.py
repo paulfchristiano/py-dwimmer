@@ -1,11 +1,24 @@
 import terms
 import data
+import compiler
+from_vim = False
+try:
+    import vim
+    from_vim = True
+except ImportError:
+    pass
 
 transitions = {}
 def ask(Q):
     r = Runner(transitions)
     r.ask(Q)
-    return r.run()
+    try:
+        return r.run()
+    except Aborting:
+        pass
+
+class Aborting(Exception):
+    pass
 
 
 class Runner(object):
@@ -16,15 +29,27 @@ class Runner(object):
     def get_action(self, setting):
         template = setting.head
         if template.id not in self.transitions:
-            raise NotImplementedError("can't yet do anything interesting")
-            action = ask(data.meta(terms.to_term(setting)))
+            if from_vim:
+                filename, lineno, col = compiler.locations[template.previous().id]
+                vim.command("w")
+                vim.command("e {}".format(filename))
+                vim.current.buffer[lineno-1:lineno-1] = [
+                    "{}with {}:".format(" " * col, string_from_template(template.lines()[-1])),
+                ]
+                vim.current.window.cursor = (lineno, col)
+                raise Aborting()
+            else:
+                raise NotImplementedError("can't yet do anything interesting")
+                action = ask(data.meta(terms.to_term(setting)))
         return self.transitions[template.id]
 
     def step(self):
         setting = self.pop()
-        print("\n\nstepping in setting:\n{}\n".format("\n".join(str(x) for x in setting.lines())))
+        if not from_vim:
+            print("\n\nstepping in setting:\n{}\n".format("\n".join(str(x) for x in setting.lines())))
         action = self.get_action(setting)
-        print("taking action: {}".format(action))
+        if not from_vim:
+            print("taking action: {}".format(action))
         answer = self.take_action(action, setting)
         if answer is not None:
             if self.stack:

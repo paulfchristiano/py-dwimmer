@@ -34,6 +34,7 @@ def uncompile(c):
             privateprefix = m.group(1)
             break
 
+    return [source, filename, firstlineno]
     return [source, filename, 'exec', c.co_flags & PyCF_MASK, firstlineno, privateprefix]
 
 

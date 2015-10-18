@@ -34,7 +34,7 @@ def inc(x):
     with answer(z):
         return z
 
-probably = T("the answer is probably {}, unless the arguments are strange")
+probably = T("the answer is probably {}")
 
 @dwim
 def eq(x, y):
@@ -94,3 +94,4 @@ def reverse_and_cat(l, l2):
         return concatenation(reverse(b), reverse_and_cat(b, l2))
     with singleton(a):
         return cons(a, l2)
+
