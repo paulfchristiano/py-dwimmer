@@ -1,6 +1,8 @@
 import terms
+from terms import template
 import data
 import compiler
+from compiler import dwim
 from_vim = False
 try:
     import vim
@@ -20,6 +22,16 @@ def ask(Q):
 class Aborting(Exception):
     pass
 
+def ensure_import(name, buffer):
+    for line in buffer:
+        split = line.split(" ")
+        if split and split[0] == "import":
+            for piece in split:
+                if piece == name:
+                    return 0
+    buffer[:0] = ["import {}".format(name)]
+    return 1
+
 
 class Runner(object):
     def __init__(self, transitions):
@@ -30,17 +42,28 @@ class Runner(object):
         template = setting.head
         if template.id not in self.transitions:
             if from_vim:
+                #TODO I should factor out these manipulations into another file probably
                 filename, lineno, col = compiler.locations[template.previous().id]
                 vim.command("w")
                 vim.command("e {}".format(filename))
+                template_name, template_file, _ = terms.templates[template.lines()[-1].id]
+                if template_file != filename:
+                    template_module = ".".join(template_file.split(".")[:-1])
+                    lineno += ensure_import(template_module, vim.current.buffer)
                 vim.current.buffer[lineno-1:lineno-1] = [
-                    "{}with {}:".format(" " * col, string_from_template(template.lines()[-1])),
+                    "{}with {}:".format( " " * col, 
+                        template_name 
+                        if template_file == filename 
+                        else "{}.{}".format(template_module, template_name)
+                    )
                 ]
                 vim.current.window.cursor = (lineno, col)
                 raise Aborting()
             else:
                 raise NotImplementedError("can't yet do anything interesting")
-                action = ask(data.meta(terms.to_term(setting)))
+                #TODO this needs to deconvert from action type
+                #(and of course I need to actually write the meta method)
+                action = ask(meta(terms.to_term(setting)))
         return self.transitions[template.id]
 
     def step(self):
@@ -95,4 +118,11 @@ class Runner(object):
             if result is not None:
                 return result
 
+@template
+class not_implemented:
+    """I don't yet know how to answer the given question"""
 
+@dwim
+def meta(template):
+    """what action should be taken in the template [template]?"""
+    raise not_implemented()

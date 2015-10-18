@@ -2,17 +2,15 @@ import ast
 import terms
 from ipdb import set_trace as debug
 import utilities
-import runner
-import data
 
 #maps each setting ID to the location of the last line of code
 #defining actions in that setting
 locations = {}
 
+#a queue of arguments to feed to learn_to_code
+#these will be executed by learn_from_all once all of the code is read,
+#and all of the names have been populated with appropriate stub definitions
 to_learn = []
-
-def testing():
-    print("loaded pydwimmer")
 
 def queue_to_learn(*args):
     to_learn.append(args)
@@ -36,6 +34,7 @@ def dwim(f):
             setting.append_line(question(*[terms.RefName(name) for name in newargs]))
             queue_to_learn(fdef.body, setting, f.__globals__, filename, first_line)
             def stub(*args):
+                import runner
                 Q = question(*(args[permute[i]] for i in range(len(args))))
                 return runner.ask(Q)
             stub.template = question
@@ -56,6 +55,7 @@ def is_call_like(head):
     return isinstance(head, ast.Call) or isinstance(head, ast.BinOp) or isinstance(head, ast.Compare)
 
 def learn_from_code(body, setting, g, filename, first_line):
+    import data, runner
     def register_action(action):
         runner.transitions[setting.head.id] = action
     head = body[0]
@@ -100,7 +100,7 @@ def temp_var(setting):
     return "temp{}".format(len(setting.lines()))
 
 def parse_term_constructor(value, setting, g, top=False):
-    import builtins
+    import builtins, data, runner
     if isinstance(value, ast.Call):
         func = eval(value.func.id, g)
         args = [parse_term_constructor(x, setting, g) for x in value.args]

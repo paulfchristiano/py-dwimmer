@@ -97,6 +97,15 @@ class Template(object):
     def from_id(cls, id):
         return Template(intern.get_all(id, [""]))
 
+templates = {}
+
+def template(cls):
+    filename = utilities.filename(cls)
+    name = cls.__name__
+    first_line = utilities.first_line(cls)
+    template = Template(cls.__doc__)
+    templates[template.id] = (name, filename, first_line)
+    return template
 
 @register_type
 class RefName(Term):
@@ -342,5 +351,10 @@ class Setting(object):
     def __str__(self):
         return str(self.head)
 
-quoted_term = Template("the term with head {} and list of arguments {}")
-setting_template = Template("a setting template with the list of lines {}")
+@template
+class quoted_term:
+    "the term with head {} and list of arguments {}"
+
+@template
+class setting_template:
+    "a setting template with the list of lines {}"

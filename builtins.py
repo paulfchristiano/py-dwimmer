@@ -1,8 +1,9 @@
-import terms
-from terms import Template as T
+import data
+#TODO refactoring needed, to put data next to where it is used
 from data import *
-import compiler
 from compiler import dwim
+from terms import template
+from ipdb import set_trace as debug
 
 @dwim
 def add(x, y):
@@ -34,7 +35,9 @@ def inc(x):
     with answer(z):
         return z
 
-probably = T("the answer is probably {}")
+@template
+class probably:
+    """the answer is probably {}"""
 
 @dwim
 def eq(x, y):
@@ -65,8 +68,13 @@ def eq(x, y):
         with double_inc(z):
             raise probably(no())
 
-concatenation = T("the concatenation of {} and {}")
-singleton = T("the list with only element {}")
+@template
+class concatenation:
+    """the concatenation of {} and {}"""
+
+@template
+class singleton:
+    """the list with only element {}"""
 
 @dwim
 def reverse(l):
@@ -94,4 +102,3 @@ def reverse_and_cat(l, l2):
         return concatenation(reverse(b), reverse_and_cat(b, l2))
     with singleton(a):
         return cons(a, l2)
-

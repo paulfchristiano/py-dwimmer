@@ -1,6 +1,8 @@
 import re
 import inspect
 from types import CodeType as code, FunctionType as function
+import sys
+import contextlib
 
 """
     uncompile credit:
@@ -67,3 +69,23 @@ def permutation_from(a, b):
             raise ValueError("the two lists are not permutations of each other")
     return result
 
+def filename(x):
+    name = inspect.getsourcefile(x)
+    return name.split('/')[-1]
+
+def first_line(x):
+    return inspect.getsourcelines(x)[1]
+
+"""credit:Alex Martelli, 2013
+    http://stackoverflow.com/questions/2828953/
+    silence-the-stdout-of-a-function-in-python-without-trashing-sys-stdout-and-resto
+"""
+class DummyFile(object):
+    def write(self, x): pass
+
+@contextlib.contextmanager
+def nostdout():
+    save_stdout = sys.stdout
+    sys.stdout = DummyFile()
+    yield
+    sys.stdout = save_stdout
