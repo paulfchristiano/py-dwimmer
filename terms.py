@@ -1,7 +1,9 @@
-import intern
 import re
 from ipdb import set_trace as debug
-import utilities
+
+import pydwimmer.intern as intern
+import pydwimmer.utilities as utilities
+import inspect
 
 by_type = {}
 def register_type(c):
@@ -20,8 +22,7 @@ class Term(object):
 
 @register_type
 class CompoundTerm(Term):
-    """
-    A term or term constructor defined with the template ID [head] and arguments [args]
+    """A term or term constructor with the template [head] and arguments [args]
 
     if [_id] is not None, then it is a unique identifier for this term
     """
@@ -29,6 +30,20 @@ class CompoundTerm(Term):
     type_id = 0
 
     __slots__ = ["head", "args", "_id"]
+
+    def full_repr(self, tabs=0):
+        margin = "  " * (tabs + 1)
+        head_str = "[{}]".join(self.head.parts).format(*[
+            str(i) for i in range(len(self.head.parts)-1)
+        ])
+        substrings = []
+        for i, arg in enumerate(self.args):
+            if hasattr(arg, "full_repr"):
+                piece = arg.full_repr(tabs+1)
+            else:
+                piece = string(arg)
+            substrings.append("{}{}: {}".format(margin, i, piece))
+        return "\n".join([head_str] + substrings)
 
     def __init__(self, head, args):
         self.head = head
@@ -66,8 +81,7 @@ class CompoundTerm(Term):
 
 @register_type
 class Template(object):
-    """
-    A representation of the term template with list of parts [parts]
+    """A representation of the term template with list of parts [parts]
     and unique idenfitier [id].
     """
 
@@ -100,17 +114,17 @@ class Template(object):
 templates = {}
 
 def template(cls):
-    filename = utilities.filename(cls)
+    path = utilities.module_path(cls)
     name = cls.__name__
     first_line = utilities.first_line(cls)
-    template = Template(cls.__doc__)
-    templates[template.id] = (name, filename, first_line)
+    head, args = utilities.remove_bracketed(inspect.cleandoc(cls.__doc__))
+    template = Template(head)
+    templates[template.id] = (name, path, args, first_line)
     return template
 
 @register_type
 class RefName(Term):
-    """
-    The term constructor that returns the argument bound to the name [name]
+    """The term constructor that returns the argument bound to the name [name]
     in the envirormnent where it is instantiated.
     """
 
@@ -133,8 +147,7 @@ class RefName(Term):
 
 @register_type
 class RefNum(Term):
-    """
-    The term constructor that returns the argument after [index] others
+    """The term constructor that returns the argument after [index] others
     in the setting where it is instantiated.
     """
 
@@ -163,8 +176,7 @@ class RefNum(Term):
 
 @register_type
 class Action(object):
-    """
-    An action of type [type] with arguments [args] and indices [indices].
+    """An action of type [type] with arguments [args] and indices [indices].
 
     If [_id] is not None, then it is the unique idenfitier of this action.
 
@@ -178,8 +190,7 @@ class Action(object):
     ASK = 1
     """Ask the question obtained by instantiating the first argument."""
     VIEW = 2
-    """
-    View the term obtained by instantiating the first argument
+    """View the term obtained by instantiating the first argument
     (which will typically be a Ref)
     """
 
@@ -238,8 +249,7 @@ class Action(object):
 
 
 class SettingTemplate(object):
-    """
-    A representation of the template for a setting with the unique identifier [id].
+    """A representation of the template for a setting with the unique identifier [id].
 
     A setting template represents an equivalence class of indistinguishable settings.
     It consists of a sequence of line templates,
@@ -255,8 +265,7 @@ class SettingTemplate(object):
             self.id = intern.intern_list([line.id for line in lines])
 
     def append_line(self, line):
-        """
-        Returns a representation of the template formed by appending [line]
+        """return a representation of the template formed by appending [line]
         to [self]
         """
         return SettingTemplate(intern.extend_list(self.id, line.id))
@@ -277,21 +286,21 @@ class SettingTemplate(object):
         return setting_template(to_term(self.lines(), quote=True))
 
 def to_term(x, quote=True):
-    import data
+    import builtin
     if not quote and isinstance(x, Term):
         return x
     if hasattr(x, 'to_term'):
         return x.to_term(quote)
     elif type(x) is list:
-        return data.list_to_term([to_term(y, quote) for y in x])
+        return builtin.lists.to_term([to_term(y, quote) for y in x])
     elif type(x) is int:
-        return data.int_to_term(x)
+        return builtin.ints.to_term(x)
     elif type(x) is bool:
-        return data.bool_to_term(x)
+        return builtin.bools.to_term(x)
     elif type(x) is str:
-        return data.string_to_term(x)
+        return builtin.strings.to_term(x)
     elif type(x) is dict:
-        return data.dict_to_term({to_term(k, quote): to_term(v, quote) for k, v in x.items()})
+        return builtin.dicts.to_term({to_term(k, quote): to_term(v, quote) for k, v in x.items()})
     elif hasattr(x, '__slots__'):
         args = [(slot, to_term(getattr(x, slot), quote)) for slot in x.__slots__]
         return term_from_args(x.__doc__, args)
@@ -311,8 +320,7 @@ def make_template(s):
     return Template(s), bracketed
 
 class Setting(object):
-    """
-    The setting with template represented by [head]
+    """the setting with template represented by [head]
     and list of arguments [args].
     """
 
@@ -325,8 +333,7 @@ class Setting(object):
             self.append_line(line)
 
     def append_line(self, line):
-        """
-        Mutates [self] by appending [line], returns [self].
+        """mutate [self] by appending [line], returns [self].
         """
 
         self.args.extend(line.line_args())
@@ -350,11 +357,3 @@ class Setting(object):
 
     def __str__(self):
         return str(self.head)
-
-@template
-class quoted_term:
-    "the term with head {} and list of arguments {}"
-
-@template
-class setting_template:
-    "a setting template with the list of lines {}"

@@ -1,8 +1,8 @@
-import terms
-from terms import template
-import data
-import compiler
-from compiler import dwim
+import pydwimmer.terms as terms
+from pydwimmer.terms import template
+import pydwimmer.compiler as compiler
+from pydwimmer.compiler import dwim
+import pydwimmer.builtin as builtin
 from_vim = False
 try:
     import vim
@@ -43,27 +43,37 @@ class Runner(object):
         if template.id not in self.transitions:
             if from_vim:
                 #TODO I should factor out these manipulations into another file probably
-                filename, lineno, col = compiler.locations[template.previous().id]
+                filename, lineno, col, taken_names = compiler.locations[template.previous().id]
                 vim.command("w")
                 vim.command("e {}".format(filename))
-                template_name, template_file, _ = terms.templates[template.lines()[-1].id]
+                template_name, template_path, arg_names, _ = terms.templates[template.lines()[-1].id]
+                for i in range(len(arg_names)):
+                    arg = arg_names[i]
+                    if arg in taken_names:
+                        j = 2
+                        while arg in taken_names:
+                            arg = arg_names[i] + str(j)
+                            j+=1
+                    arg_names[i] = arg
+                #TODO I should make the file processing less terrifying
+                template_file = template_path.split(".")[-1]
                 if template_file != filename:
-                    template_module = ".".join(template_file.split(".")[:-1])
-                    lineno += ensure_import(template_module, vim.current.buffer)
-                vim.current.buffer[lineno-1:lineno-1] = [
-                    "{}with {}:".format( " " * col, 
+                    lineno += ensure_import(template_path, vim.current.buffer)
+                vim.current.buffer[lineno:lineno] = [
+                    "{}with {}({}):".format( " " * col, 
                         template_name 
                         if template_file == filename 
-                        else "{}.{}".format(template_module, template_name)
+                        else "{}.{}".format(template_path, template_name),
+                        ", ".join(arg_names)
                     )
                 ]
-                vim.current.window.cursor = (lineno, col)
+                vim.current.window.cursor = (lineno+1, col)
                 raise Aborting()
             else:
                 raise NotImplementedError("can't yet do anything interesting")
                 #TODO this needs to deconvert from action type
                 #(and of course I need to actually write the meta method)
-                action = ask(meta(terms.to_term(setting)))
+                action = ask(builtin.meta.what_to_do(terms.to_term(setting)))
         return self.transitions[template.id]
 
     def step(self):
@@ -117,12 +127,3 @@ class Runner(object):
             result = self.step()
             if result is not None:
                 return result
-
-@template
-class not_implemented:
-    """I don't yet know how to answer the given question"""
-
-@dwim
-def meta(template):
-    """what action should be taken in the template [template]?"""
-    raise not_implemented()

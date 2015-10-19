@@ -1,10 +1,17 @@
-import compiler
-from builtins import *
-from data import *
 from ipdb import set_trace as debug
+
+from pydwimmer.builtin import *
+from pydwimmer.builtin.ints import *
+from pydwimmer.builtin.lists import *
+from pydwimmer.builtin.dicts import *
+from pydwimmer.builtin.bools import *
+from pydwimmer.builtin.core import *
+from pydwimmer.terms import to_term
+import pydwimmer.compiler as compiler
+import pydwimmer.builtin as builtin
 
 compiler.learn_from_all()
 
 if __name__ == '__main__':
-    A = reverse([0, 1, 2])
+    A = builtin.lists.reverse([0, 1, 2])
     debug()

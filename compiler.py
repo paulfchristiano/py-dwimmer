@@ -1,7 +1,7 @@
 import ast
-import terms
+import pydwimmer.terms as terms
 from ipdb import set_trace as debug
-import utilities
+import pydwimmer.utilities as utilities
 
 #maps each setting ID to the location of the last line of code
 #defining actions in that setting
@@ -26,7 +26,7 @@ def dwim(f):
         fdef = tree.body[0]
         if isinstance(fdef, ast.FunctionDef):
             args = [x.id for x in fdef.args.args]
-            if getattr(f, '__doc__', None) is None:
+            if not hasattr(f, '__doc__'):
                 raise ValueError("dwim requires docstring")
             question, newargs = terms.make_template(f.__doc__)
             permute = utilities.permutation_from(newargs, args)
@@ -42,129 +42,190 @@ def dwim(f):
     else:
         raise ValueError()
 
-def last_line_of(node):
+def last_line_no(node):
     if hasattr(node, "lineno"):
         last = node.lineno
     else:
         last = -1
     for child in ast.iter_child_nodes(node):
-        last = max(last_line_of(child), last)
+        last = max(last_line_no(child), last)
     return last
 
 def is_call_like(head):
     return isinstance(head, ast.Call) or isinstance(head, ast.BinOp) or isinstance(head, ast.Compare)
 
-def learn_from_code(body, setting, g, filename, first_line):
-    import data, runner
-    def register_action(action):
-        runner.transitions[setting.head.id] = action
-    head = body[0]
-    if isinstance(head, ast.Expr):
-        value = head.value
-        if is_call_like(value):
-            Q = parse_term_constructor(value, setting, g, True)
-            action = terms.Action.ask(Q)
-        elif isinstance(value, ast.Name):
-            v = parse_term_constructor(value, setting, g)
-            action = terms.Action.view(v)
-        elif isinstance(value, ast.Str):
-            return learn_from_code(body[1:], setting, g, filename, first_line)
-        else:
-            raise ValueError("invalid expression type in dwim'd function")
-    elif isinstance(head, ast.Return):
-        A = parse_term_constructor(head.value, setting, g)
-        action = terms.Action.reply(data.answer(A))
-    elif isinstance(head, ast.Raise):
-        A = parse_term_constructor(head.type, setting, g)
-        action = terms.Action.reply(A)
-    else:
-        raise ValueError("first line of a block was not an expression or return/raise")
-    register_action(action)
-    setting = setting.append_line(action)
-    last_line = last_line_of(body[-1])
-    locations[setting.head.id] = (filename, last_line+first_line, head.col_offset)
-    for block in body[1:]:
-        if isinstance(block, ast.With):
-            context = block.context_expr
-            if isinstance(context, ast.Call):
-                template = extract_template(context.func, g)
-                arg_names = [terms.RefName(args.id) for args in context.args]
-                new_setting = setting.copy().append_line(template(*arg_names))
-            else:
-                raise ValueError("with context is not a function call")
-            learn_from_code(block.body, new_setting, g, filename, first_line)
-        else:
-            raise ValueError("subsequent line of a block was not a with statement")
+def get_answer(setting):
+    import builtin
+    v = "temp{}".format(len(setting.lines()))
+    setting = setting.append_line(builtin.core.answer(terms.RefName(v)))
+    return parse_term_constructor(ast.Name(v, ast.Load()), setting, None)
 
-def temp_var(setting):
-    return "temp{}".format(len(setting.lines()))
+def take_and_save_action(setting, action):
+    import runner
+    runner.transitions[setting.head.id] = action
+    return setting.append_line(action)
+
+def learn_from_code(body, setting, g, filename, first_line):
+    import runner, builtin
+    try:
+        head = body[0]
+        if isinstance(head, ast.Expr):
+            value = head.value
+            if is_call_like(value):
+                Q, setting = parse_term_constructor(value, setting, g, True)
+                action = terms.Action.ask(Q)
+            elif isinstance(value, ast.Name):
+                v, setting = parse_term_constructor(value, setting, g)
+                action = terms.Action.view(v)
+            elif isinstance(value, ast.Str):
+                learn_from_code(body[1:], setting, g, filename, first_line)
+                return
+            else:
+                raise ValueError("invalid expression type in dwim'd function", value.lineno)
+            setting = take_and_save_action(setting, action)
+        elif isinstance(head, ast.Return):
+            A, setting = parse_term_constructor(head.value, setting, g)
+            action = terms.Action.reply(builtin.core.answer(A))
+            setting = take_and_save_action(setting, action)
+        elif isinstance(head, ast.Raise):
+            A, setting = parse_term_constructor(head.type, setting, g)
+            action = terms.Action.reply(A)
+            setting = take_and_save_action(setting, action)
+        elif isinstance(head, ast.If):
+            cond = head.test
+            #NOTE: this is not top---if it is a question, we should ask then take the answer
+            v, setting = parse_term_constructor(cond, setting, g)
+            action = terms.Action.view(v)
+            setting = take_and_save_action(setting, action)
+            learn_from_code(
+                head.body, 
+                setting.copy().append_line(builtin.bools.yes()), 
+                g, filename, first_line
+            )
+            learn_from_code(
+                head.orelse, 
+                setting.copy().append_line(builtin.bools.no()), 
+                g, filename, first_line
+            )
+        else:
+            raise ValueError("first line of a block was not an expression or return/raise", head.lineno)
+        last_line = last_line_no(body[-1])
+        locations[setting.head.id] = (
+                filename, 
+                last_line+first_line-1,
+                head.col_offset, 
+                [arg.name for arg in setting.args]
+            )
+        for block in body[1:]:
+            if isinstance(block, ast.With):
+                context = block.context_expr
+                if isinstance(context, ast.Call):
+                    template = extract_template(context.func, g)
+                    arg_names = [terms.RefName(args.id) for args in context.args]
+                    new_setting = setting.copy().append_line(template(*arg_names))
+                else:
+                    raise ValueError("with context is not a function call", context.lineno)
+                learn_from_code(block.body, new_setting, g, filename, first_line)
+            else:
+                raise ValueError("subsequent line of a block was not a with statement", block.lineno)
+    except ValueError, exc:
+        exc.args = ("{} in line {} of {}".format(exc.args[0], exc.args[1] + first_line - 1, filename),)
+        raise
+
+def map_and_fold(xs, y, f):
+    """
+    apply [f] to each element of [xs] in order.
+    use [y] as the second argument of the first invocation,
+    and after that use the second output of each invocation
+    as the second input into the next one.
+    return a pair with the list of first outputs,
+    as well as the final second output
+    """
+    if len(xs) == 0:
+        return ([], y)
+    else:
+        x, y = f(xs[0], y)
+        out_list, out_y = map_and_fold(xs[1:], y, f)
+        return [x] + out_list, out_y
 
 def parse_term_constructor(value, setting, g, top=False):
-    import builtins, data, runner
+    import builtin, runner
+    def subparse(value, setting):
+        return parse_term_constructor(value, setting, g)
     if isinstance(value, ast.Call):
-        func = eval(value.func.id, g)
-        args = [parse_term_constructor(x, setting, g) for x in value.args]
+        func = evaluate(value.func, g)
+        new_args, setting = map_and_fold( value.args, setting, subparse)
         if isinstance(func, terms.Template):
-            return func(*args)
+            return func(*new_args), setting
         if top:
             if hasattr(func, 'template'):
-                return func.template(*args)
+                return func.template(*new_args), setting
             else:
-                raise ValueError("calling function without template")
+                raise ValueError("calling function without template", value.lineno)
     if is_call_like(value) and not top:
-        #NOTE I just literally edit the setting if I encounter an intermediate value
-        #this is pretty unsavory! but it happens to work
-        #(it also relies on mutability of settings)
-        Q = parse_term_constructor(value, setting, g, True)
+        Q, setting = parse_term_constructor(value, setting, g, True)
         action = terms.Action.ask(Q)
-        runner.transitions[setting.head.id] = action
-        setting.append_line(action)
-        v = temp_var(setting)
-        setting.append_line(data.answer(terms.RefName(v)))
-        return parse_term_constructor(ast.Name(v, ast.Load()), setting, g)
+        setting = take_and_save_action(setting, action)
+        v, setting = get_answer(setting)
+        return v, setting
     if isinstance(value, ast.List):
-        return terms.list_to_term([parse_term_constructor(x, setting, g) for x in value.elts])
+        elts, setting = map_and_fold(value.elts, setting, subparse)
+        return builtin.lists.to_term(elts), setting
     if isinstance(value, ast.Dict):
-        return terms.dict_to_term({
-            parse_term_constructor(k, setting, g):parse_term_constructor(v, setting, g)
-            for k, v in zip(value.keys, value.values)
-        })
+        keys, setting = map_and_fold(value.keys, setting, subparse)
+        values, setting = map_and_fold(value.values, setting, subparse)
+        return builtin.dicts.to_term(dict(zip(values, keys))), setting
     if isinstance(value, ast.Name):
-        for i, s in enumerate(setting.args):
-            if value.id == s.name:
-                return terms.RefNum(i)
-        else:
-            raise ValueError("name does not appear in setting")
+        try:
+            return terms.RefNum(utilities.index_in(
+                    value.id, [arg.name for arg in setting.args]
+                )), setting
+        except ValueError, exc:
+            exc.args = exc.args + (value.lineno,)
+            raise
     if isinstance(value, ast.Num):
-        return data.int_to_term(value.n)
+        return builtin.ints.to_term(value.n), setting
     if isinstance(value, ast.Str):
-        return data.string_to_term(value.s)
+        return builtin.strings.to_term(value.s), setting
     #TODO lists and dictionaries
-    def from_op(left, op, right, opEquivalents):
+    def from_op(left, op, right, opEquivalents, setting):
         for c in opEquivalents:
             if isinstance(op, c):
-                return opEquivalents[c].template(
-                    parse_term_constructor(left, setting, g),
-                    parse_term_constructor(right, setting, g)
-                )
-        raise ValueError("unrecognized operation")
+                args, setting = map_and_fold([left, right], setting, subparse)
+                return opEquivalents[c].template(*args), setting
+        raise ValueError("unrecognized operation", value.lineno)
     if isinstance(value, ast.BinOp):
         opEquivalents = {
-            ast.Add: builtins.add
+            ast.Add: builtin.ints.add
         }
-        return from_op(value.left, value.op, value.right, opEquivalents)
+        return from_op(value.left, value.op, value.right, opEquivalents, setting)
     if isinstance(value, ast.Compare) and len(value.ops) == 1:
         opEquivalents = {
-            ast.Eq: builtins.eq
+            ast.Eq: builtin.core.eq
         }
-        return from_op(value.left, value.ops[0], value.comparators[0], opEquivalents)
-    raise ValueError("unknown type of expression")
+        return from_op(value.left, value.ops[0], value.comparators[0], opEquivalents, setting)
+    raise ValueError("unknown type of expression", value.lineno)
 
 def extract_template(value, g):
-    concrete = eval(value.id, g)
+    concrete = evaluate(value, g)
     if isinstance(concrete, terms.Template):
         return concrete
     elif hasattr(concrete, "template"):
         return concrete.template
     else:
-        raise ValueError("extracting template from something without a template")
+        raise ValueError("extracting template from something without a template", value.lineno)
+
+def evaluate(value, g):
+    if isinstance(value, ast.Name):
+        name = value.id
+        if name in g:
+            return g[name]
+        elif name in __builtins__:
+            return __builtins__[name]
+        else:
+            raise ValueError("the name {} is not in the global scope".format(name), value.lineno)
+    elif isinstance(value, ast.Attribute):
+        host = evaluate(value.value, g)
+        return getattr(host, value.attr)
+    else:
+        raise ValueError("unknown type of expression", value.lineno)

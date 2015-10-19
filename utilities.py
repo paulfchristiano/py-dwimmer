@@ -3,6 +3,9 @@ import inspect
 from types import CodeType as code, FunctionType as function
 import sys
 import contextlib
+import os
+
+modulename = __name__.split(".")[0]
 
 """
     uncompile credit:
@@ -69,9 +72,21 @@ def permutation_from(a, b):
             raise ValueError("the two lists are not permutations of each other")
     return result
 
-def filename(x):
+def index_in(x, ys):
+    for i, y in enumerate(ys):
+        if x == y:
+            return i
+    else:
+        raise ValueError("that element does not appear in that list")
+
+def module_path(x):
     name = inspect.getsourcefile(x)
-    return name.split('/')[-1]
+    path = os.path.abspath(name)
+    steps = path.split("/")
+    module_index = index_in(modulename, steps)
+    result = ".".join(steps[module_index:])
+    result = ".".join(result.split(".")[:-1])
+    return result
 
 def first_line(x):
     return inspect.getsourcelines(x)[1]
