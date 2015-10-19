@@ -14,4 +14,4 @@ compiler.learn_from_all()
 
 if __name__ == '__main__':
     A = builtin.lists.reverse([0, 1, 2])
-    debug()
+    print(A.full_repr())
