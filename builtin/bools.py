@@ -16,28 +16,18 @@ def to_term(b):
 @dwim
 def both(a, b):
     """are [a] and [b] both affirmative?"""
-    a
-    with no():
+    if a:
+        return b
+    else:
         return no()
-    with yes():
-        b
-        with no():
-            return no()
-        with yes():
-            return yes()
 
 @dwim
-def both(a, b):
+def either(a, b):
     """is one of [a] and [b] affirmative?"""
-    a
-    with yes():
+    if a:
         return yes()
-    with no():
-        b
-        with yes():
-            return yes()
-        with no():
-            return no()
+    else:
+        return no()
 
 @dwim
 def eq(a, b):
