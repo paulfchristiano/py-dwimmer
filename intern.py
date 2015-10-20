@@ -55,8 +55,8 @@ def get_list(id):
         result.append(last)
     return list(reversed(result))
 
-
 extend_list = intern_pair
+init_and_last = get_pair
 
 
 def get_all(id, kind, *args):

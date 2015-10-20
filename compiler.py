@@ -129,7 +129,8 @@ def learn_from_code(body, setting, g, filename, first_line):
             else:
                 raise ValueError("subsequent line of a block was not a with statement", block.lineno)
     except ValueError, exc:
-        exc.args = ("{} in line {} of {}".format(exc.args[0], exc.args[1] + first_line - 1, filename),)
+        if len(exc.args) == 2:
+            exc.args = ("{} in line {} of {}".format(exc.args[0], exc.args[1] + first_line - 1, filename),)
         raise
 
 def map_and_fold(xs, y, f):
