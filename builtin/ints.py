@@ -1,3 +1,4 @@
+import pydwimmer.builtin.core
 import pydwimmer.builtin.ints
 import ints
 from pydwimmer.terms import template
@@ -41,6 +42,10 @@ def add(x, y):
             return double_inc(z+w)
         with zero():
             return x
+        with pydwimmer.builtin.ints.negative(x2):
+            x2
+            with pydwimmer.builtin.ints.double_inc(x3):
+                minus(z, x3)
     with double_inc(z):
         y
         with double(w):
@@ -49,8 +54,23 @@ def add(x, y):
             return double(inc(z+w))
         with zero():
             return x
+        with pydwimmer.builtin.ints.negative(x2):
+            x2
     with zero():
         return y
+
+@dwim
+def minus(x, y):
+    """what [x] - [y]?"""
+    x
+    with pydwimmer.builtin.ints.double_inc(x2):
+        y
+        with pydwimmer.builtin.ints.double_inc(x3):
+            minus(x2, x3)
+            with pydwimmer.builtin.core.answer(A):
+                return double(A)
+    with pydwimmer.builtin.ints.zero():
+        return negative(y)
 
 @dwim
 def inc(x):

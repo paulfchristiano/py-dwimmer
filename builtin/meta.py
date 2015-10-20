@@ -1,5 +1,6 @@
 from pydwimmer.compiler import dwim
 from pydwimmer.terms import template
+from pydwimmer.builtin.core import answer
 
 @template
 class quoted_term:
@@ -17,3 +18,18 @@ class not_implemented:
 def meta(template):
     """what action should be taken in the setting with template [template]?"""
     raise not_implemented()
+
+@dwim
+def predict(template):
+    """try to predict what action should be taken 
+    in the setting with template [template],
+    without consulting the user
+    """
+    analogies(template)
+
+@dwim
+def analogies(template):
+    """what other setting templates are most closely analogous
+    to [template], and what are the analogies?
+    """
+    template
