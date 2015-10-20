@@ -44,14 +44,48 @@ def uncompile(c):
 
 
 def remove_bracketed(s):
-    varname = r"[a-zA-Z_][a-zA-Z0-9_']*"
+    unbracketed_parts = [""]
+    bracketed_parts = []
+    stack = []
+    parens = {"[":"]", "{":"}", "(":")"}
+    depth = 0
+    openers = "[({"
+    closers = "})]"
+    for c in s:
+        if c in parens.keys():
+            if '[' in stack:
+                bracketed_parts[-1] += c
+            else:
+                if c == '[':
+                    bracketed_parts.append("")
+                else:
+                    unbracketed_parts[-1] += c
+            stack.append(c)
+        elif c in parens.values():
+            if c != parens[stack[-1]]:
+                raise ValueError("mismatched parens")
+            stack = stack[:-1]
+            if '[' in stack:
+                bracketed_parts[-1] += c
+            else:
+                if c == ']':
+                    unbracketed_parts.append("")
+                elif c != ']':
+                    unbracketed_parts[-1] += c
+        else:
+            if '[' in stack:
+                bracketed_parts[-1] += c
+            else:
+                unbracketed_parts[-1] += c
+    return "{}".join([double_chars(part, "{}") for part in unbracketed_parts]), bracketed_parts
+
+def double_chars(s, chars):
     result = []
-    while True:
-        m = re.match(r'(.*?)\[({})\](.*)'.format(varname), s, flags=re.DOTALL)
-        if m is None:
-            return s, result
-        s = m.group(1) + "{}" + m.group(3)
-        result.append(m.group(2))
+    for c in s:
+        result.append(c)
+        if c in chars:
+            result.append(c)
+    return "".join(result)
 
 def permutation_from(a, b):
     """
