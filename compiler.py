@@ -65,9 +65,21 @@ def take_and_save_action(setting, action):
     runner.transitions[setting.head.id] = action
     return setting.append_line(action)
 
-def learn_from_code(body, setting, g, filename, first_line):
+def learn_from_code(body, setting, g, filename, first_line, start_line=None, start_col=None):
     import runner, builtin
     try:
+        if not body:
+            #TODO improve the registering of locations
+            #(eliminate redundancy, use a less ambiguous data structure)
+            if start_line is None or start_col is None:
+                raise ValueError("can't have an empty block")
+            locations[setting.head.id] = (
+                filename,
+                start_line+first_line-1,
+                start_col,
+                [arg.name for arg in setting.args]
+            )
+            return
         head = body[0]
         if isinstance(head, ast.Expr):
             value = head.value
@@ -77,8 +89,9 @@ def learn_from_code(body, setting, g, filename, first_line):
             elif isinstance(value, ast.Name):
                 v, setting = parse_term_constructor(value, setting, g)
                 action = terms.Action.view(v)
-            elif isinstance(value, ast.Str):
-                learn_from_code(body[1:], setting, g, filename, first_line)
+            elif isinstance(value, ast.Str) or isinstance(value, ast.Pass):
+                learn_from_code(body[1:], setting, g, filename, first_line, 
+                        last_line_no(value), value.col_offset)
                 return
             else:
                 raise ValueError("invalid expression type in dwim'd function", value.lineno)
@@ -125,7 +138,11 @@ def learn_from_code(body, setting, g, filename, first_line):
                     new_setting = setting.copy().append_line(template(*arg_names))
                 else:
                     raise ValueError("with context is not a function call", context.lineno)
-                learn_from_code(block.body, new_setting, g, filename, first_line)
+                #TODO here we do the indent manually
+                #I don't see how to avoid this, but we can at least be more principled about it
+                #rather than assuming that it is 4 spaces...
+                learn_from_code(block.body, new_setting, g, filename, first_line, 
+                        last_line_no(context), context.col_offset+4)
             else:
                 raise ValueError("subsequent line of a block was not a with statement", block.lineno)
     except ValueError, exc:

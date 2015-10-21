@@ -132,6 +132,32 @@ def first_line(x):
 class DummyFile(object):
     def write(self, x): pass
 
+class ScreenedOut(object):
+    def __init__(self, writer, f):
+        self.writer = writer
+        self.filter = f
+        self.resume = True
+        
+    def write(self, x):
+        if self.resume and self.filter(x):
+            self.writer.write(x)
+        else:
+            self.resume = '\n' in x
+
+def starts_with(prefixes, s):
+    for prefix in prefixes:
+        if len(s) >= len(prefix) and s[:len(prefix)] == prefix:
+            return True
+    else:
+        return False
+
+@contextlib.contextmanager
+def noreloads():
+    save_stdout = sys.stdout
+    sys.stdout = ScreenedOut(sys.stdout, lambda x : not starts_with(["Reloading"], x))
+    yield
+    sys.stdout = save_stdout
+
 @contextlib.contextmanager
 def nostdout():
     save_stdout = sys.stdout

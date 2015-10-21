@@ -1,4 +1,5 @@
-import builtin
-import compiler
-import main
+import intern
 import terms
+import compiler
+import builtin
+import main
