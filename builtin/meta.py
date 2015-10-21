@@ -1,3 +1,5 @@
+import pydwimmer.compiler
+import pydwimmer.terms
 from pydwimmer.compiler import dwim
 from pydwimmer.terms import template
 from pydwimmer.builtin.core import answer
@@ -32,4 +34,10 @@ def analogies(template):
     """what other setting templates are most closely analogous
     to [template], and what are the analogies?
     """
+    question(template)
+
+@pydwimmer.compiler.dwim
+def question(template):
+    """what is the question being answered in the setting with template [template]?"""
     template
+
