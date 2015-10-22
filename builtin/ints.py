@@ -1,3 +1,4 @@
+import pydwimmer.builtin.dicts
 import pydwimmer.builtin.bools
 import pydwimmer.compiler
 import pydwimmer.terms
@@ -125,6 +126,10 @@ def eq(x, y):
             return z == 0
         with double_inc(z):
             raise core.probably(no())
+    with pydwimmer.builtin.dicts.int_type():
+        y
+        with pydwimmer.builtin.dicts.int_type():
+            return yes()
 
 @pydwimmer.compiler.dwim
 def decrement(x):

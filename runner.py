@@ -1,8 +1,9 @@
-import pydwimmer.terms as terms
+from pydwimmer import terms
 from pydwimmer.terms import template
-import pydwimmer.compiler as compiler
+from pydwimmer import compiler
 from pydwimmer.compiler import dwim
-import pydwimmer.builtin as builtin
+from pydwimmer import builtin
+
 from_vim = False
 try:
     import vim
@@ -20,6 +21,9 @@ def ask(Q):
         pass
 
 class Aborting(Exception):
+    pass
+
+class Overflow(Exception):
     pass
 
 class Runner(object):
@@ -64,6 +68,8 @@ class Runner(object):
 
     def push(self, setting):
         self.stack.append(setting)
+        if len(self.stack) > 1000:
+            raise Overflow()
 
     def pop(self):
         self.stack, result = self.stack[:-1], self.stack[-1]

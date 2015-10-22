@@ -1,11 +1,12 @@
 import ast
-import pydwimmer.terms as terms
+from pydwimmer import terms
+from pydwimmer import utilities
+from pydwimmer import locations
 from ipdb import set_trace as debug
-import pydwimmer.utilities as utilities
 
 #maps each setting ID to the location of the last line of code
 #defining actions in that setting
-locations = {}
+setting_definitions = {}
 
 #a queue of arguments to feed to learn_to_code
 #these will be executed by learn_from_all once all of the code is read,
@@ -29,10 +30,12 @@ def dwim(f):
             if not hasattr(f, '__doc__'):
                 raise ValueError("dwim requires docstring")
             question, newargs = terms.make_template(f.__doc__)
+            terms.all_templates.add(question)
             permute = utilities.permutation_from(newargs, args)
             setting = terms.Setting()
             setting.append_line(question(*[terms.RefName(name) for name in newargs]))
             queue_to_learn(fdef.body, setting, f.__globals__, filename, first_line)
+            terms.template_definitions[question.id] = locations.get_definition(f)
             def stub(*args):
                 import runner
                 Q = question(*(args[permute[i]] for i in range(len(args))))
@@ -73,12 +76,10 @@ def learn_from_code(body, setting, g, filename, first_line, start_line=None, sta
             #(eliminate redundancy, use a less ambiguous data structure)
             if start_line is None or start_col is None:
                 raise ValueError("can't have an empty block")
-            locations[setting.head.id] = (
-                filename,
-                start_line+first_line-1,
-                start_col,
-                [arg.name for arg in setting.args]
-            )
+            setting_definitions[setting.head.id] = locations.SettingDefinition(
+                    locations.Location(filename, start_line+first_line-1, start_col),
+                    setting
+                )
             return
         head = body[0]
         if isinstance(head, ast.Expr):
@@ -123,11 +124,9 @@ def learn_from_code(body, setting, g, filename, first_line, start_line=None, sta
         else:
             raise ValueError("first line of a block was not an expression or return/raise", head.lineno)
         last_line = last_line_no(body[-1])
-        locations[setting.head.id] = (
-                filename, 
-                last_line+first_line-1,
-                head.col_offset, 
-                [arg.name for arg in setting.args]
+        setting_definitions[setting.head.id] = locations.SettingDefinition(
+                locations.Location(filename, last_line+first_line-1, head.col_offset),
+                setting
             )
         for block in body[1:]:
             if isinstance(block, ast.With):

@@ -3,10 +3,10 @@ import inspect
 from types import CodeType as code, FunctionType as function
 import sys
 import contextlib
-import os
 
-modulename = __name__.split(".")[0]
 
+#TODO Unompilation probably belongs in locations rather than in utilities
+#(and should probably be better integrated with that machinery)
 """
     uncompile credit:
     http://code.activestate.com/recipes/578353-code-to-source-and-back/
@@ -113,17 +113,6 @@ def index_in(x, ys):
     else:
         raise ValueError("that element does not appear in that list")
 
-def module_path(x):
-    name = inspect.getsourcefile(x)
-    path = os.path.abspath(name)
-    steps = path.split("/")
-    module_index = index_in(modulename, steps)
-    result = ".".join(steps[module_index:])
-    result = ".".join(result.split(".")[:-1])
-    return result
-
-def first_line(x):
-    return inspect.getsourcelines(x)[1]
 
 """credit:Alex Martelli, 2013
     http://stackoverflow.com/questions/2828953/

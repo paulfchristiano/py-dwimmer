@@ -1,8 +1,7 @@
 import re
 from ipdb import set_trace as debug
 
-import pydwimmer.intern as intern
-import pydwimmer.utilities as utilities
+from pydwimmer import intern, utilities, locations
 import inspect
 
 by_type = {}
@@ -98,28 +97,40 @@ class Template(object):
     def __repr__(self):
         return "{}".join(self.parts)
 
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return self.id
+
     def __call__(self, *args):
         return CompoundTerm(self, [to_term(arg, quote=False) for arg in args])
 
-    def line_slots(self):
+    def num_args(self):
         return len(self.parts)-1
+
+    def line_slots(self):
+        return self.num_args()
 
     def line_instantiate(self, *args):
         return self(*args)
+
+    def show_with(self, args):
+        return str(self).format(*args)
 
     @classmethod
     def from_id(cls, id):
         return Template(intern.get_all(id, [""]))
 
-templates = {}
+template_definitions = {}
+all_templates = set()
 
 def template(cls):
-    path = utilities.module_path(cls)
-    name = cls.__name__
-    first_line = utilities.first_line(cls)
     head, args = utilities.remove_bracketed(inspect.cleandoc(cls.__doc__))
     template = Template(head)
-    templates[template.id] = (name, path, args, first_line)
+    template_def = locations.SymbolDefinition(locations.get_location(cls), cls.__name__, args)
+    all_templates.add(template)
+    template_definitions[template.id] = template_def
     return template
 
 @register_type
