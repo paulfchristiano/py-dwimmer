@@ -1,8 +1,12 @@
 import re
-from ipdb import set_trace as debug
+
+def debug():
+    import ipdb
+    ipdb.set_trace()
 
 from pydwimmer import intern, utilities, locations
 import inspect
+
 
 by_type = {}
 def register_type(c):

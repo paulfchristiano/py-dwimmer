@@ -1,4 +1,6 @@
-from ipdb import set_trace as debug
+def debug():
+    import ipdb
+    ipdb.set_trace()
 
 from pydwimmer.builtin import *
 from pydwimmer.builtin.ints import *

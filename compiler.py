@@ -2,7 +2,10 @@ import ast
 from pydwimmer import terms
 from pydwimmer import utilities
 from pydwimmer import locations
-from ipdb import set_trace as debug
+
+def debug():
+    import ipdb
+    ipdb.set_trace()
 
 #maps each setting ID to the location of the last line of code
 #defining actions in that setting

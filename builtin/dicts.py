@@ -49,6 +49,18 @@ def lookup(key, d):
                 return z
             with no_image():
                 raise no_image()
+    with by_parity(evens, odds):
+        parity(key)
+        with odd_and_half_is(x):
+            lookup(x, odds)
+            with pydwimmer.builtin.core.answer(A):
+                return A
+    with dict_only(k, v):
+        core.eq(k, key)
+        with pydwimmer.builtin.core.answer(A):
+            A
+            with pydwimmer.builtin.bools.yes():
+                return v
 
 @pydwimmer.compiler.dwim
 def insert(dict,k,v):
@@ -170,4 +182,17 @@ def new_dict(t):
     t
     with pydwimmer.builtin.dicts.int_type():
         return by_parity(empty_dict(), empty_dict())
+
+
+@pydwimmer.compiler.dwim
+def parity(x):
+    """is [x] even or odd, and what is the floor of half of it?"""
+    x
+    with pydwimmer.builtin.ints.double_inc(xx):
+        raise odd_and_half_is(xx)
+
+
+@pydwimmer.terms.template
+class odd_and_half_is:
+    """it is odd, and the floor of half of it is [x]"""
 

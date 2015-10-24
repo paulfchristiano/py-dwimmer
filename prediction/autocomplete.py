@@ -2,7 +2,10 @@ from collections import defaultdict
 from Levenshtein import distance
 import heapq
 import math
-from ipdb import set_trace as debug
+
+def debug():
+    import ipdb
+    ipdb.set_trace()
 
 from pydwimmer import terms
 from pydwimmer import utilities
@@ -38,6 +41,8 @@ def candidates(s):
 
 def best_matches(s, n):
     x = s.split()
+    if not x:
+        return []
     words = set(x[:-1])
     fragment = x[-1]
     templates = candidates(s)

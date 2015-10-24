@@ -1,6 +1,9 @@
 from intern import *
 import pytest
-from ipdb import set_trace as debug
+
+def debug():
+    import ipdb
+    ipdb.set_trace()
 
 @pytest.mark.parametrize("encoder,decoder,inputs",[
     (intern_string, get_string, ["hi", "hello", "test", "hello", "test", "this"]),
