@@ -55,6 +55,10 @@ def lookup(key, d):
             lookup(x, odds)
             with pydwimmer.builtin.core.answer(A):
                 return A
+        with even_and_half_is(x):
+            pydwimmer.builtin.dicts.lookup(x, evens)
+            with no_image():
+                raise pydwimmer.builtin.dicts.no_image()
     with dict_only(k, v):
         core.eq(k, key)
         with pydwimmer.builtin.core.answer(A):
@@ -190,9 +194,15 @@ def parity(x):
     x
     with pydwimmer.builtin.ints.double_inc(xx):
         raise odd_and_half_is(xx)
-
+    with pydwimmer.builtin.ints.double(xx):
+        raise even_and_half_is(xx)
 
 @pydwimmer.terms.template
 class odd_and_half_is:
     """it is odd, and the floor of half of it is [x]"""
+
+
+@pydwimmer.terms.template
+class even_and_half_is:
+    """it is even, and half of it is [x]"""
 

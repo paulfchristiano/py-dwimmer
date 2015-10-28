@@ -1,3 +1,4 @@
+import pydwimmer.builtin.strings
 import pydwimmer.builtin.dicts
 import pydwimmer.builtin.bools
 import pydwimmer.compiler
@@ -63,6 +64,9 @@ def add(x, y):
             x2
     with zero():
         return y
+    with pydwimmer.builtin.strings.string(chars):
+        y
+        with pydwimmer.builtin.strings.string(chars2):
 
 @dwim
 def minus(x, y):
@@ -243,6 +247,10 @@ def compare_within_one(x,y):
             compare_within_one(x2, 0)
             with pydwimmer.builtin.ints.are_equal():
                 raise first_one_larger()
+            with first_one_larger():
+                raise first_one_larger()
+            with first_larger():
+                raise first_one_larger()
     with pydwimmer.builtin.ints.zero():
         y
         with pydwimmer.builtin.ints.double(x2):
@@ -261,6 +269,14 @@ def compare_within_one(x,y):
             compare_within_one(x2, x3)
             with pydwimmer.builtin.ints.first_one_larger():
                 raise first_one_larger()
+        with zero():
+            pydwimmer.builtin.ints.compare_within_one(x2, 0)
+            with are_equal():
+                raise pydwimmer.builtin.ints.are_equal()
+            with first_one_larger():
+                raise pydwimmer.builtin.ints.first_larger()
+            with first_larger():
+                raise first_larger()
 
 
 @pydwimmer.terms.template

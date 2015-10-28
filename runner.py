@@ -68,7 +68,7 @@ class Runner(object):
 
     def push(self, setting):
         self.stack.append(setting)
-        if len(self.stack) > 1000:
+        if len(self.stack) > 100000:
             raise Overflow()
 
     def pop(self):

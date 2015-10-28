@@ -46,7 +46,14 @@ def best_matches(s, n):
     words = set(x[:-1])
     fragment = x[-1]
     templates = candidates(s)
-    return heapq.nlargest(n, templates, lambda template : match_quality(template, words, fragment))
+    for x in candidates:
+        if x not in terms.all_templates:
+            raise ValueError("what happened?", x)
+    result = heapq.nlargest(n, templates, lambda template : match_quality(template, words, fragment))
+    for x in result:
+        if x not in terms.all_templates:
+            raise ValueError("what happened?", x)
+    return result
 
 def match_quality(template, words, fragment):
     score = 0

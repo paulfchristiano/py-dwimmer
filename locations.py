@@ -47,7 +47,7 @@ class SettingDefinition(object):
         j = 1
         while s in taken:
             j += 1
-            s = "{}{}".format(name, s)
+            s = "{}{}".format(name, j)
         return s
 
     def __repr__(self):

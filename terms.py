@@ -120,7 +120,10 @@ class Template(object):
         return self(*args)
 
     def show_with(self, args):
-        return str(self).format(*args)
+        try:
+            return str(self).format(*args)
+        except IndexError:
+            return "Error@({}).format({})"(self, args)
 
     @classmethod
     def from_id(cls, id):
